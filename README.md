@@ -1,1 +1,0 @@
-# mpl-koha-patch-chrome
