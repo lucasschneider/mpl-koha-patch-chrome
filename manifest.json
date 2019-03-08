@@ -1,0 +1,75 @@
+{
+  "manifest_version": 2,
+  "name": "MPL Koha Patch",
+  "version": "22.4.1",
+  "author": "Lucas Schneider",
+  "description": "LibLime Koha ILS modifications targeted to the staff of Madison Public Library in Wisconsin's South Central Library System",
+  "homepage_url": "http://lrschneider.com/mpl-koha-patch-chrome",
+
+  "incognito": "spanning",
+
+  "icons": {
+    "16": "/content/img/mpl-icon-16.png",
+    "32": "/content/img/mpl-icon-32.png",
+    "48": "/content/img/mpl-icon-48.png",
+    "64": "/content/img/mpl-icon-64.png",
+    "128": "/content/img/mpl-icon-128.png"
+  },
+
+  "browser_action": {
+    "default_title": "MPL Koha Patch",
+    "default_area": "navbar",
+    "browser_style": true,
+    "default_icon": {
+      "16": "/content/img/mpl-icon-16.png",
+      "32": "/content/img/mpl-icon-32.png",
+      "48": "/content/img/mpl-icon-48.png",
+      "64": "/content/img/mpl-icon-64.png",
+      "128": "/content/img/mpl-icon-128.png"
+    },
+    "default_popup": "/browserAction/popup.html"
+  },
+
+  "background": {
+      "scripts": [
+        "/background/defaultPrefs.js",
+        "/background/main.js"
+      ],
+      "persistent": false
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.kohalibrary.com/*"
+      ],
+      "js": [
+        "content/scripts/fastaddWarning.js",
+        "content/scripts/fixSessionCkoDiv.js",
+        "content/scripts/holdsShelfActionCDs.js",
+        "content/scripts/printBarcode.js",
+        "content/scripts/sortHoldsByRank.js",
+        "content/scripts/sortItemCheckoutHistory.js",
+        "content/scripts/sortItemCopiesForHolds.js",
+        "content/scripts/sortLibraries.js",
+        "content/scripts/sortWaitingHolds.js",
+        "content/scripts/standardFormat.js"
+      ]
+    }
+  ],
+
+  "options_ui": {
+      "page": "/optionsPage/options.html",
+      "open_in_tab": false
+  },
+
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "tabs",
+    "webNavigation",
+    "*://*.kohalibrary.com/*",
+    "*://*.census.gov/*",
+    "*://*.googleapis.com/*",
+    "*://mpl-koha-patch.lrschneider.com/*"
+  ]
+}
