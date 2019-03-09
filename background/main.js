@@ -263,5 +263,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case "updateExtensionIcon":
       setIcon();
       break;
+    case "addNote":
+      chrome.tabs.executeScript({
+        file: "/browserAction/scripts/addPaymentPlanNote.js"
+      });
+      break;
+    case "addLostCardNote":
+      chrome.tabs.executeScript({
+        file: "/browserAction/scripts/addLostCardNote.js"
+      });
+      break;
   }
 });

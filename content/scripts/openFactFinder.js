@@ -1,4 +1,4 @@
-browser.runtime.onMessage.addListener(message => {
+chrome.runtime.onMessage.addListener(message => {
   var geographies = document.getElementById('geo-overlay-btn');
   if (geographies) {
     geographies.click();

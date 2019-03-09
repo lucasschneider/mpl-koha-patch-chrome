@@ -22,12 +22,13 @@ HTMLInputElement.prototype.parseName = function () {
   return false;
 }
 
-if (/memberentry\.pl/.test(location.toString())) {
-  var firstName = document.getElementById('firstname'),
-    initials = document.getElementById('initials');
-  if (firstName) {
-    firstName.parseName();
-    firstName.addEventListener('blur', HTMLInputElement.prototype.parseName);
+(function(){
+  if (/memberentry\.pl/.test(location.toString())) {
+    var firstName = document.getElementById('firstname'),
+      initials = document.getElementById('initials');
+    if (firstName) {
+      firstName.parseName();
+      firstName.addEventListener('blur', HTMLInputElement.prototype.parseName);
+    }
   }
-}
-undefined;
+})();
