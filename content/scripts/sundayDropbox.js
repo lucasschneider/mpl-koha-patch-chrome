@@ -1,4 +1,5 @@
-(function () {
+(function(){
+  'use strict';
   var dropbox = document.getElementById('dropboxcheck');
 
   if (dropbox) {
@@ -6,9 +7,9 @@
 
     dropbox.addEventListener('change', function() {
       if(!this.checked) {
-        browser.runtime.sendMessage({"key": "pauseSundayDropbox"});
+        chrome.runtime.sendMessage({"key": "pauseSundayDropbox"});
       } else {
-        browser.runtime.sendMessage({"key": "resumeSundayDropbox"});
+        chrome.runtime.sendMessage({"key": "resumeSundayDropbox"});
       }
     });
   }

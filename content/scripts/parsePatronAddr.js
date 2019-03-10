@@ -86,9 +86,9 @@
     }
 
     var parseAddr = function() {
-      if (addr.value && city.value) {
-        chrome.runtime.sendMessage({"key": "parsePatronAddr"},function(result) {
-          for (let item of result) {
+      if (addr.value && city.value && /madison|monona/i.test(city.value)) {
+        chrome.runtime.sendMessage({"key": "parsePatronAddr"},function(response) {
+          for (let item of response) {
             var fullAddr = (addr.value + ' ' + addr2.value).trim().replace(/[^\w\s]|_/g, "");
             var regex = new RegExp(item.regex, 'i');
 
@@ -182,8 +182,6 @@
           } else if (cc.value === "LUJ") {
             cc.value = "JU";
           }
-        }, reject => {
-          console.error(reject.message);
         });
       }
     };

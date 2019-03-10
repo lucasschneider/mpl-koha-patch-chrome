@@ -1421,7 +1421,7 @@ if (/cgi-bin\/koha\/members\/memberentry\.pl/.test(window.location)) {
         MSG_SEARCHING + ';cursor:pointer;display:none;');
 
     openFactFinder.addEventListener('click', function() {
-      browser.runtime.sendMessage({
+      chrome.runtime.sendMessage({
         "key": "openFactFinder",
         "address": cleanAddr(targetAddr, false),
         "city": getCity(targetCity, true)
@@ -1465,12 +1465,12 @@ if (/cgi-bin\/koha\/members\/memberentry\.pl/.test(window.location)) {
     toggleGMapSearch(false);
     pstatMsg.send(MSG_SEARCHING, "Finding PSTAT...", findAltPSTAT);
 
-    browser.runtime.sendMessage({
+    chrome.runtime.sendMessage({
       "key": "queryGeocoder",
       "address": targetAddr.value,
       "addressURI": cleanAddr(targetAddr, true),
       "city": getCity(targetCity, true)
-    }).then(result => {
+    }, function(result) {
       if (result.key === "returnCensusData") {
         targetZip.value = result.zip;
 
@@ -1482,38 +1482,38 @@ if (/cgi-bin\/koha\/members\/memberentry\.pl/.test(window.location)) {
 
         pstatMsg.send(MSG_SUCCESS, "PSTAT Matched with: " + result.matchAddr, findAltPSTAT);
         toggleGMapSearch(true);
-      }
-    }, reject => {
-      selectList[0].value = "X-UND";
-      initialRejectMsg = reject.message;
-    }).then(() => {
-      if (selectList[0].value === "X-UND") {
-        browser.runtime.sendMessage({
+      } else if (result.key === "failedCensusData") {
+        selectList[0].value = "X-UND";
+        initialRejectMsg = result.rejectMsg;
+
+        chrome.runtime.sendMessage({
           "key": "queryAlderDists",
           "address": targetAddr.value,
           "code": targetCity.value.toLowerCase().substring(0,3)
-        }).then(result => {
-          if (result.value) {
-            selectList[0].value = result.value;
-          }
+        }, function(result) {
+          if (result.key === "returnAlderDists") {
+            if (result.value) {
+              selectList[0].value = result.value;
+            }
 
-          if (result.zip) {
-            targetZip.value = result.zip;
-          }
+            if (result.zip) {
+              targetZip.value = result.zip;
+            }
 
-          pstatMsg.send(MSG_SUCCESS,
-              "PSTAT Matched with: " + decodeURI(targetAddr.value).toUpperCase(),
-              findAltPSTAT);
-          toggleGMapSearch(true);
-        }, reject => {
-          pstatMsg.send(MSG_ERROR, "PSTAT Error: " + initialRejectMsg, findAltPSTAT);
-        }).then(() => {
-          if (selectList[0].value === "X-UND") {
-            openFactFinder.style.display = 'block';
-            if (findAltPSTAT) {
-              addrEltAlt.parentElement.appendChild(openFactFinder);
-            } else {
-              addrElt.parentElement.appendChild(openFactFinder);
+            pstatMsg.send(MSG_SUCCESS,
+                "PSTAT Matched with: " + decodeURI(targetAddr.value).toUpperCase(),
+                findAltPSTAT);
+            toggleGMapSearch(true);
+          } else if (result.key === "failedAlderDists") {
+            pstatMsg.send(MSG_ERROR, "PSTAT Error: " + initialRejectMsg, findAltPSTAT);
+
+            if (selectList[0].value === "X-UND") {
+              openFactFinder.style.display = 'block';
+              if (findAltPSTAT) {
+                addrEltAlt.parentElement.appendChild(openFactFinder);
+              } else {
+                addrElt.parentElement.appendChild(openFactFinder);
+              }
             }
           }
         });
@@ -1583,16 +1583,18 @@ if (/cgi-bin\/koha\/members\/memberentry\.pl/.test(window.location)) {
     nearestLib.onclick = function() {
       var selected = document.getElementById('mapRegionList').selectedOptions[0].value;
 
-      browser.runtime.sendMessage({
+      chrome.runtime.sendMessage({
         "key": "findNearestLib",
         "address": encodeURI(cleanAddr(targetAddr, false) + ", " +
             targetCity.value.toLowerCase()),
         "selected": selected
-      }).then(result => {
-        branchList.value = result[0];
-        showGMapResponse("Closest Library: " + result[0], MSG_SUCCESS);
-      }, reject => {
-        showGMapResponse(reject.message, MSG_ERROR);
+      }, function(result) {
+        if (result.key === "failedNearestLib") {
+          showGMapResponse(result.rejectMsg, MSG_ERROR);
+        } else {
+          branchList.value = result[0];
+          showGMapResponse("Closest Library: " + result[0], MSG_SUCCESS);
+        }
       });
     };
 
@@ -1625,7 +1627,7 @@ if (/cgi-bin\/koha\/members\/memberentry\.pl/.test(window.location)) {
   };
 
   // Listen for alternate address PSTAT request
-  browser.runtime.onMessage.addListener(message => {
+  chrome.runtime.onMessage.addListener(message => {
     if (message.key === "findAlternatePSTAT") {
       queryPSTAT(true);
     }

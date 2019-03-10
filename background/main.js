@@ -255,23 +255,483 @@ chrome.contextMenus.create({
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "start-pi-form") {
+
+    function sendErrorMsg(msg) {
+      chrome.tabs.executeScript(tab.id, {
+        "code": "alert('" + msg + "');"
+      });
+    }
+
+    function openPIForm(barcode) {
+      if (barcode.match(/[0-9]{14}/g)) {
+        if (barcode.match(/[0-9]{14}/g).length === 1) {
+          barcode = /[0-9]{14}/.exec(barcode);
+
+          if (barcode) barcode = barcode[0];
+
+          switch (barcode.substr(0, 1)) {
+            case "2":
+              chrome.tabs.create({
+                "url": chrome.runtime.getURL("../problemItemForm/problemItemForm.html") + "?patron=" + barcode
+              });
+              break;
+            case "3":
+              chrome.tabs.create({
+                "url": chrome.runtime.getURL("../problemItemForm/problemItemForm.html") + "?item=" + barcode
+              });
+              break;
+            default:
+              sendErrorMsg("ERROR: Unable to determine barcode type.");
+              break;
+          }
+        } else {
+          sendErrorMsg("ERROR: Multiple barcodes found in selection.");
+        }
+      } else {
+        sendErrorMsg("ERROR: Barcode not found in selection or link.");
+      }
+    };
+
+    // Populate barcode based on the particular context type
+    if (info.selectionText) {
+      openPIForm(info.selectionText);
+    } else if (info.linkUrl) {
+      chrome.tabs.executeScript(tab.id, {
+        "code": "document.querySelector('a[href=\"" + info.linkUrl.substring(34) + "\"]').textContent;"
+      }, function(res) {
+        res[0] = res[0].trim();
+        if(/^[23]\d{13}$/.test(res[0])) {
+          openPIForm(res[0]);
+        } else {
+          sendErrorMsg("ERROR: Failed to extract link text.");
+          return;
+        }
+      });
+    } else {
+      sendErrorMsg("ERROR: Failed to extract text data.");
+      return;
+    }
   }
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  switch(message.key) {
+  const OPEN_CHANNEL = true;
+  const CLOSE_CHANNEL = false;
+  var result = CLOSE_CHANNEL;
+
+  switch(message.key) {case "queryGeocoder":
+    var matchAddr, county, countySub, censusTract, zip;
+
+    const baseURL = "https://geocoding.geo.census.gov/geocoder/geographies/address?street="
+      countyURL = baseURL + message.addressURI + "&city=" + message.city
+          + "&state=wi&benchmark=Public_AR_Current&vintage=Current_Current&layers=Counties&format=json",
+      countySubdivisionURL = baseURL + message.addressURI + "&city=" + message.city
+          + "&state=wi&benchmark=Public_AR_Current&vintage=Current_Current&layers=County+Subdivisions&format=json",
+      censusTractURL = baseURL + message.addressURI + "&city=" + message.city
+          + "&state=wi&benchmark=Public_AR_Current&vintage=Current_Current&layers=Census Tracts&format=json";
+
+    const getCounty = fetch(countyURL, {"method": "GET"}).then(response => {
+      if(!response.ok && response.status != '400') {
+        throw new Error('[census.gov] HTTP error, status = ' + response.status);
+      }
+      return response.json();
+    });
+
+    const getCountySub = fetch(countySubdivisionURL, {"method": "GET"}).then(response => {
+      if(!response.ok && response.status != '400') {
+        throw new Error('[census.gov] HTTP error, status = ' + response.status);
+      }
+      return response.json();
+    });
+
+    const getCensusTract = fetch(censusTractURL, {"method": "GET"}).then(response => {
+      if(!response.ok && response.status != '400') {
+        throw new Error('[census.gov] HTTP error, status = ' + response.status);
+      }
+      return response.json();
+    });
+
+    Promise.all([getCounty,getCountySub,getCensusTract]).then(vals => {
+      var countyData = vals[0], countySubData = vals[1],
+          censusTractData = vals[2];
+
+      if (countyData.errors) {
+        throw new Error(countyData.errors.join("; "));
+      } else if (!countyData || !countyData.result || countyData.result.addressMatches.length === 0) {
+        throw new Error("No county data matched given address.");
+      } else if (countySubData.errors) {
+        throw new Error(countySubData.errors.join("; "));
+      } else if (!countySubData || !countySubData.result || countySubData.result.addressMatches.length === 0) {
+        throw new Error("No county subdivision data matched given address.");
+      } else if (censusTractData.errors) {
+        throw new Error(censusTractData.errors.join("; "));
+      } else if (!censusTractData || !censusTractData.result || censusTractData.result.addressMatches.length === 0) {
+        throw new Error("No census tract data matched given address.");
+      } else {
+        countyData = countyData.result.addressMatches[0];
+        countySubData = countySubData.result.addressMatches[0];
+        censusTractData = censusTractData.result.addressMatches[0];
+
+        matchAddr = countyData.matchedAddress.split(',')[0].toUpperCase();
+        county = countyData.geographies.Counties[0].BASENAME;
+        countySub = countySubData.geographies['County Subdivisions'][0].NAME;
+        zip = countyData.addressComponents.zip;
+        censusTract = censusTractData.geographies['Census Tracts'];
+        if (censusTract) censusTract = censusTract[0].BASENAME;
+
+        if (matchAddr && county && countySub && censusTract && zip) {
+          if (county === "Dane" && /^(Middleton|Sun Prairie|Verona) (city|village)$/.test(countySub)) {
+            const libCode = countySub.substring(0,3).toLowerCase(),
+              alderURL = "https://mpl-koha-patch.lrschneider.com/pstats/" + libCode +
+                "?val=all&regex=true";
+
+            return fetch(alderURL, {"method": "GET"}).then(response => {
+              return response.json();
+            }).then(json => {
+              var value = "";
+
+              for (var i = 0; i < json.length; i++) {
+                var regex = new RegExp(json[i].regex, "i");
+                if (regex.test(matchAddr)) {
+                  value = json[i].value;
+                }
+              }
+
+              return Promise.resolve({
+                "key": "returnCensusData",
+                "matchAddr": matchAddr,
+                "county": county,
+                "countySub": countySub,
+                "censusTract": censusTract,
+                "zip": zip,
+                "value": value
+              });
+            });
+          } else {
+            return Promise.resolve({
+              "key": "returnCensusData",
+              "matchAddr": matchAddr,
+              "county": county,
+              "countySub": countySub,
+              "censusTract": censusTract,
+              "zip": zip
+            });
+          }
+        }
+      }
+    }).then(res => {
+      sendResponse(res);
+    }, reject => {
+      sendResponse({
+        "key": "failedCensusData",
+        "rejectMsg": reject.message
+      });
+    });
+    result = OPEN_CHANNEL;
+    break;
+  case "queryAlderDists":
+    const alderURL = "https://mpl-koha-patch.lrschneider.com/pstats?library="
+        + message.code;
+
+    fetch(alderURL, {"method": "GET"}).then(response => {
+      if(!response.ok) {
+        throw new Error('[lrschneider.com] HTTP error, status = ' + response.status);
+      }
+      return response.json();
+    }).then(json => {
+      var value, zip;
+      for (var i = 0; i < json.length; i++) {
+        var regex = new RegExp(json[i].regex, "i");
+
+        if (regex.test(message.address)) {
+          value = json[i].value;
+          zip = json[i].zip
+          break;
+        }
+      }
+
+      if (value && zip) {
+        sendResponse({
+          "key": "returnAlderDists",
+          "value": value,
+          "zip": zip
+        });
+      } else if (value) {
+        sendResponse({
+          "key": "returnAlderDists",
+          "value": value
+        });
+      } else {
+        sendResponse({"key": "failedAlderDists"});
+      }
+    });
+    result = OPEN_CHANNEL;
+    break;
+  case "alternatePSTAT":
+    chrome.tabs.query({
+      "currentWindow": true,
+      "active": true
+    }, function(tabs) {
+      for (let tab of tabs) {
+        chrome.tabs.sendMessage(tab.id, {
+          "key": "findAlternatePSTAT"
+        });
+      }
+    });
+    break;
+  case "openFactFinder":
+    chrome.tabs.create({
+      "url": "https://factfinder.census.gov/faces/nav/jsf/pages/searchresults.xhtml",
+      "active": true
+    }, function(tab) {
+      chrome.tabs.executeScript(tab.id, {
+        "file": "/content/scripts/openFactFinder.js",
+        "allFrames": true
+      }, function() {
+        chrome.tabs.sendMessage(tab.id, {
+          "key": "addressData",
+          "address": message.address,
+          "city": message.city
+        });
+      });
+    });
+    break;
+  case "findNearestLib":
+    var scls = new SCLSLibs();
+    const mapURL = "https://maps.googleapis.com/maps/api/distancematrix/json" +
+        "?key=AIzaSyAAYcV9I6AAd4EQphC4Ynai5dmOScYBggA&origins=" +
+        message.address + "&destinations=" + scls.getURI(message.selected);
+
+    fetch(mapURL, {"method": "GET"}).then(response => {
+      if (!response.ok) {
+        throw new Error('[maps.googleapis.com] HTTP error, status = ' + response.status);
+      }
+      return response.json();
+    }).then(json => {
+      if (json.error_message) {
+        throw new Error(json.error_message);
+      }
+
+      var distanceData = json.rows[0].elements,
+        distanceOrder = scls.getOrder(message.selected);
+        distArray = [];
+
+      for (var i = 0; i < distanceData.length; i++) {
+        distArray.push([distanceOrder[i], distanceData[i].distance.value])
+      }
+
+      return Promise.resolve(distArray.sort((a,b) => {
+        if (a[1] < b[1]) return -1;
+        else if (a[1] > b[1]) return 1;
+        else return 0;
+      })[0]);
+    }).then(arr => {
+      sendResponse(arr);
+    }, reject => {
+      sendResponse({
+        "key": "failedNearestLib",
+        "rejectMsg": reject.message
+      });
+    });
+    result = OPEN_CHANNEL;
+    break;
     case "updateExtensionIcon":
       setIcon();
       break;
     case "addNote":
       chrome.tabs.executeScript({
-        file: "/browserAction/scripts/addPaymentPlanNote.js"
+        "file": "/browserAction/scripts/addPaymentPlanNote.js"
       });
       break;
     case "addLostCardNote":
       chrome.tabs.executeScript({
-        file: "/browserAction/scripts/addLostCardNote.js"
+        "file": "/browserAction/scripts/addLostCardNote.js"
+      });
+      break;
+    case "printBarcode":
+      chrome.storage.sync.get('receiptFont',function(res) {
+        var barcodeLib = res.hasOwnProperty('receiptFont') ? res.receiptFont : "MPL";
+
+        chrome.tabs.create({
+          "active": false,
+          "url": "/printBarcode/printBarcode.html?barcode=" + message.data + "&lib=" + barcodeLib
+        },function(tab) {
+          setTimeout(() => {
+            chrome.tabs.remove(tab.id)
+          }, 1000);
+        });
+      });
+      break;
+    case "parsePatronAddr":
+      const madAddrURL = "https://mpl-koha-patch.lrschneider.com/madAddr";
+
+      fetch(madAddrURL, {"method": "GET"}).then(response => {
+        if (!response.ok) {
+          throw new Error('[lrschneider.com] HTTP error, status = ' + response.status);
+        }
+        return response.json();
+      }).then(json => {
+        sendResponse(json);
+      });
+      result = OPEN_CHANNEL;
+      break;
+    case "pauseSundayDropbox":
+      chrome.storage.sync.set({"sundayDropboxPaused": true});
+      setTimeout(function(){
+        chrome.storage.sync.set({"sundayDropboxPaused": false});
+      }, 180000); // 3min
+      break;
+    case "resumeSundayDropbox":
+        chrome.storage.sync.set({"sundayDropboxPaused": false});
+      break;
+    case "printProblemForm":
+      chrome.tabs.create({
+        "active": false,
+        "url": chrome.runtime.getURL("../problemItemForm/printProblemForm.html")
+      }, function(tab) {
+        setTimeout(() => {
+          chrome.tabs.sendMessage(tab.id, {
+            "key": "printProblemForm",
+            "data": message.data
+          });
+
+          setTimeout(() => {
+            chrome.tabs.remove(tab.id)
+          }, 1000);
+        }, 500);
+      });
+      break;
+    case "prepareItemData":
+      chrome.tabs.create({
+        "active": false,
+        "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/circ/circulation-home.pl?mkpItemBarcode=" + message.itemBarcode + "#tabs-catalog_search"
+      }, function(tab) {
+        chrome.tabs.executeScript(tab.id, {
+          "file": "/problemItemForm/prepareItemData.js"
+        }, function() {
+          setTimeout(() => {
+            chrome.tabs.executeScript(tab.id, {
+              "file": "/problemItemForm/getItemData.js"
+            });
+          }, 7000);
+          setTimeout(() => {
+            chrome.tabs.remove(tab.id)
+          }, 8000);
+        });
+      });
+      break;
+    case "returnItemData":
+    case "failedItemData":
+      chrome.tabs.query({
+        "currentWindow": true,
+        "active": true
+      }, function(tabs) {
+        for (let tab of tabs) {
+          if (message.key === "returnItemData") {
+            chrome.tabs.sendMessage(tab.id, {
+              "key": "returnItemData",
+              "bibNum": message.bibNum,
+              "itemNum": message.itemNum,
+              "itemTitle": message.itemTitle,
+              "copies": message.copies,
+              "cCode": message.cCode
+            });
+
+            //Get Holds Data
+            chrome.tabs.create({
+              "active": false,
+              "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/catalogue/detail.pl?biblionumber=" + message.bibNum
+            }, function(holdsTab) {
+              setTimeout(() => {
+                chrome.tabs.executeScript(holdsTab.id, {
+                  "file": "/problemItemForm/getItemHolds.js"
+                }, function() {
+                  setTimeout(() => {
+                    chrome.tabs.remove(holdsTab.id);
+                  }, 1000);
+                });
+              }, 7000);
+            });
+          } else { // Failed
+            chrome.tabs.sendMessage(tab.id, {
+              "key": "failedItemData"
+            });
+          }
+        }
+      });
+      break;
+    case "getPatronData":
+      chrome.tabs.create({
+        "active": false,
+        "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/circ/circulation.pl?findborrower=" + message.patronBarcode
+      }, function(tab) {
+        chrome.tabs.executeScript(tab.id, {
+          "file": "/problemItemForm/getPatronData.js"
+        }, function() {
+          setTimeout(() => {
+            chrome.tabs.remove(tab.id)
+          }, 2500);
+        });
+      });
+      break;
+    case "getPatronFromURL":
+      chrome.tabs.create({
+        "active": false,
+        "url": "https://scls-staff.kohalibrary.com" + message.url
+      }, function(tab) {
+        chrome.tabs.executeScript(tab.id, {
+          "file": "/problemItemForm/getPatronData.js"
+        }, function() {
+          setTimeout(() => {
+            chrome.tabs.remove(tab.id);
+          }, 2500);
+        });
+      });
+      break;
+    case "returnPatronData":
+    case "failedPatronData":
+      chrome.tabs.query({
+        "currentWindow": true,
+        "active": true
+      }, function(tabs) {
+        for (let tab of tabs) {
+          if (message.key === "returnPatronData") {
+            chrome.tabs.sendMessage(tab.id, {
+              "key": "returnPatronData",
+              "patronName": message.patronName,
+              "patronBarcode": message.patronBarcode,
+              "patronPhone": message.patronPhone,
+              "patronEmail": message.patronEmail
+            });
+          } else { // Failed
+            chrome.tabs.sendMessage(tab.id, {
+              "key": "failedPatronData"
+            });
+          }
+        }
+      });
+      break;
+    case "returnItemHolds":
+    case "failedItemHolds":
+      chrome.tabs.query({
+        "currentWindow": true,
+        "active": true
+      }, function(tabs) {
+        for (let tab of tabs) {
+          if (message.key === "returnItemHolds") {
+            chrome.tabs.sendMessage(tab.id, {
+              "key": "returnItemHolds",
+              "holds": message.holds,
+              "itemTitle": message.itemTitle
+            });
+          } else { // Failed
+            chrome.tabs.sendMessage(tab.id, {
+              "key": "failedItemHolds"
+            });
+          }
+        }
       });
       break;
   }
+  return result;
 });
