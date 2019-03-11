@@ -13,6 +13,9 @@
       month = parseInt(date.getUTCMonth(), 10),
       staffInit;
 
+      // Convert date UTC -> CST
+      date.setHours(date.getHours() - 6);
+
     if (month < 4) {
       year = date.getUTCFullYear();
     } else if (month > 4) {
@@ -26,8 +29,7 @@
     }
 
     function currDate() {
-      var d = new Date(),
-        year = date.getFullYear(),
+      var year = date.getFullYear(),
         month = (1 + date.getMonth()).toString(),
         day;
       month = month.length > 1 ? month : '0' + month;
