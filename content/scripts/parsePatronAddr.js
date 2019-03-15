@@ -10,11 +10,12 @@
       dob = document.getElementById('dateofbirth'),
       date = new Date(),
       year,
-      month = parseInt(date.getUTCMonth(), 10),
+      month,
       staffInit;
 
       // Convert date UTC -> CST
       date.setHours(date.getHours() - 6);
+      month = parseInt(date.getUTCMonth(), 10);
 
     if (month < 4) {
       year = date.getUTCFullYear();
