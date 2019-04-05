@@ -1,21 +1,101 @@
-// Convert date UTC -> CST
-let d = new Date();
-d.setHours(d.getHours() - 6);
+(function(){
+  'use strict';
 
-let month = (d.getMonth()+1).toString(),
-  day = d.getDate().toString();
+  const to = document.getElementById("to");
+  const date = document.getElementById("date");
+  const from = document.getElementById("from");
+  const staffName = document.getElementById("staffInit");
+  const type = document.getElementById("problem");
+  const idBy = document.getElementById("idBy");
+  const receivedVia = document.getElementById("receivedBy");
+  const ckiBySorter = document.getElementById("ckiBySorter");
+  const details = document.getElementById("details");
+  const itemTitle = document.getElementById("itemTitle");
+  const itemBarcode = document.getElementById("itemBarcode");
+  const cCode = document.getElementById("cCode");
+  const holds = document.getElementById("holds");
+  const copies = document.getElementById("copies");
+  const use = document.getElementById("use");
+  const patron = document.getElementById("name");
+  const patronBarcode = document.getElementById("patronBarcode");
+  const patronPhone = document.getElementById("phone");
+  const patronEmail = document.getElementById("email");
+  const notified = document.getElementById("dateNotified");
+  const staffInit = document.getElementById("notifiedBy");
+  const contactedVia = document.getElementById("contactedVia");
+  const instructions = document.getElementById("instructions");
+  const nonDefectNonHold = document.getElementById("nonDefectNonHold");
+  const nonDefectHold = document.getElementById("nonDefectHold");
+  const defect = document.getElementById("defect");
 
-if (month.length == 1) {
-   month = "0" + month;
-}
+  const prepareItemData = document.getElementById("prepareItemData");
+  const getPatronData = document.getElementById("getPatronData");
+  const printForm = document.getElementById("printForm");
 
-if (day.length == 1) {
-  day = "0" + day;
-}
+  let getCurrDate = function() {
+    let d = new Date();
+    d.setHours(d.getHours() - 6);
 
-document.getElementById('date').value = d.getFullYear() + "-" + month + "-" + day;
+    let month = (d.getMonth()+1).toString(),
+      day = d.getDate().toString();
 
-var prepareItemData = document.getElementById("prepareItemData"),
+    if (month.length == 1) {
+       month = "0" + month;
+    }
+
+    if (day.length == 1) {
+      day = "0" + day;
+    }
+
+    return d.getFullYear() + "-" + month + "-" + day;
+  };
+
+  let formatDateForDisplay = function(date) {
+    if (date && date !== "") {
+      var d = new Date(date);
+      return (d.getUTCMonth()+1) + "/" + d.getUTCDate() + "/" + d.getUTCFullYear();
+    } else {
+      return "";
+    }
+  };
+
+  date.value = getCurrDate();
+
+  // Trigger getPatronData() when enter is pressed in patronBarcode input
+  patronBarcode.addEventListener("keyup", evt => {
+    if (evt.key !== "Enter") return;
+    getPatronData.click();
+    evt.preventDefault();
+  });
+
+  getPatronData.addEventListener("click", function() {
+    patron.value = "";
+    patronPhone.value = "";
+    patronEmail.value = "";
+
+    if (patronBarcode.value.length === 8) {
+      patronBarcode.value = "290780" + patronBarcode.value;
+    }
+
+    if (/^29078\d{9}$/.test(patronBarcode.value)) {
+      if (patronBarcode.classList.contains("invalidInput")) {
+        patronBarcode.classList.remove("invalidInput");
+      }
+      chrome.runtime.sendMessage({
+        "key": "getPatronData",
+        "patronBarcode": patronBarcode.value
+      }, function(result) {
+        console.log(result);
+      });
+    } else {
+      if (!patronBarcode.classList.contains("invalidInput")) {
+        patronBarcode.classList.add("invalidInput");
+      }
+    }
+  });
+});
+
+/*var prepareItemData = document.getElementById("prepareItemData"),
   itemBarcode = document.getElementById("itemBarcode"),
   patronBarcode = document.getElementById("patronBarcode"),
   getPatronData = document.getElementById("getPatronData"),
@@ -60,41 +140,6 @@ if (prepareItemData) prepareItemData.addEventListener("click", function () {
   }
 });
 
-// Trigger getPatronData() when enter is pressed in patronBarcode input
-patronBarcode.addEventListener("keyup", event => {
-  if (event.key !== "Enter") return;
-  document.getElementById("getPatronData").click();
-  event.preventDefault();
-});
-
-if (getPatronData) getPatronData.addEventListener("click", function() {
-  var name = document.getElementById("name"),
-    phone = document.getElementById("phone"),
-    email = document.getElementById("email");
-
-  name.value = "";
-  phone.value = "";
-  email.value = "";
-
-  if (patronBarcode.value.length === 8) {
-    patronBarcode.value = "290780" + patronBarcode.value;
-  }
-
-  if (/^2[0-9]{13}$/.test(patronBarcode.value)) {
-    if (patronBarcode.classList.contains("invalidInput")) {
-      patronBarcode.classList.remove("invalidInput");
-    }
-    chrome.runtime.sendMessage({
-      "key": "getPatronData",
-      "patronBarcode": patronBarcode.value
-    });
-  } else {
-    if (!patronBarcode.classList.contains("invalidInput")) {
-      patronBarcode.classList.add("invalidInput");
-    }
-  }
-});
-
 chrome.runtime.onMessage.addListener(message => {
   switch (message.key) {
     case "returnItemData":
@@ -134,42 +179,7 @@ chrome.runtime.onMessage.addListener(message => {
   }
 });
 
-function formatDateForDisplay(date) {
-  if (date && date !== "") {
-    var d = new Date(date);
-    return (d.getUTCMonth()+1) + "/" + d.getUTCDate() + "/" + d.getUTCFullYear();
-  } else {
-    return "";
-  }
-}
-
 if (printForm) printForm.addEventListener("click", function() {
-  var to = document.getElementById("to"),
-    date = document.getElementById("date"),
-    from = document.getElementById("from"),
-    staffName = document.getElementById("staffInit"),
-    type = document.getElementById("problem"),
-    idBy = document.getElementById("idBy"),
-    receivedVia = document.getElementById("receivedBy"),
-    ckiBySorter = document.getElementById("ckiBySorter"),
-    details = document.getElementById("details"),
-    itemTitle = document.getElementById("itemTitle"),
-    itemBarcode = document.getElementById("itemBarcode"),
-    cCode = document.getElementById("cCode"),
-    holds = document.getElementById("holds"),
-    copies = document.getElementById("copies"),
-    use = document.getElementById("use"),
-    patron = document.getElementById("name"),
-    patronBarcode = document.getElementById("patronBarcode"),
-    patronPhone = document.getElementById("phone"),
-    patronEmail = document.getElementById("email"),
-    notified = document.getElementById("dateNotified"),
-    staffInit = document.getElementById("notifiedBy"),
-    contactedVia = document.getElementById("contactedVia"),
-    instructions = document.getElementById("instructions"),
-    nonDefectNonHold = document.getElementById("nonDefectNonHold"),
-    nonDefectHold = document.getElementById("nonDefectHold"),
-    defect = document.getElementById("defect");
 
   var emailParts = patronEmail
 
@@ -227,10 +237,10 @@ if (printForm) printForm.addEventListener("click", function() {
       ]
     });
   }
-});
+});*/
 
 /*** Handle cases when we're loading the problem form with barcode data ***/
-if (location.search.length > 0) {
+/*if (location.search.length > 0) {
   var data = location.search.substr(1).split("=");
 
   if (data && data.length === 2) {
@@ -242,4 +252,4 @@ if (location.search.length > 0) {
       getPatronData.click();
     }
   }
-}
+}*/

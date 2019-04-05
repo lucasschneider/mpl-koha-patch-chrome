@@ -588,6 +588,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case "resumeSundayDropbox":
         chrome.storage.sync.set({"sundayDropboxPaused": false});
       break;
+    case "getPatronData":
+      chrome.tabs.create({
+        "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/circ/circulation.pl?findborrower=" + message.patronBarcode,
+        "active": false
+      }, tab => {
+        chrome.tabs.executeScript(tab.id, {
+          "file": "/problemItemForm/getPatronData.js"
+        }, res => {
+          chrome.tabs.remove(tab.id);
+          sendResponse(res);
+        });
+      });
+      result = OPEN_CHANNEL;
+      break;
     case "printProblemForm":
       chrome.tabs.create({
         "active": false,
@@ -662,20 +676,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             });
           }
         }
-      });
-      break;
-    case "getPatronData":
-      chrome.tabs.create({
-        "active": false,
-        "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/circ/circulation.pl?findborrower=" + message.patronBarcode
-      }, function(tab) {
-        chrome.tabs.executeScript(tab.id, {
-          "file": "/problemItemForm/getPatronData.js"
-        }, function() {
-          setTimeout(() => {
-            chrome.tabs.remove(tab.id)
-          }, 2500);
-        });
       });
       break;
     case "getPatronFromURL":
