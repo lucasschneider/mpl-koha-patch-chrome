@@ -172,6 +172,8 @@ var SCLSLibs = function() {
   };
 };
 
+let problemItemFormTabId;
+
 // Load preference-selected function files
 chrome.webNavigation.onCompleted.addListener(details => {
   if (details.frameId == 0) { // 0 indicates the navigation happens in the tab content window;
@@ -277,12 +279,12 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
             case "2":
               chrome.tabs.create({
                 "url": chrome.runtime.getURL("../problemItemForm/problemItemForm.html") + "?patron=" + barcode
-              });
+              }, tab => {problemItemFormTabId = tab.id});
               break;
             case "3":
               chrome.tabs.create({
                 "url": chrome.runtime.getURL("../problemItemForm/problemItemForm.html") + "?item=" + barcode
-              });
+              }, tab => {problemItemFormTabId = tab.id});
               break;
             default:
               sendErrorMsg("ERROR: Unable to determine barcode type.");
@@ -602,138 +604,106 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       result = OPEN_CHANNEL;
       break;
-    case "printProblemForm":
+    case "getPatronFromURL":
       chrome.tabs.create({
-        "active": false,
-        "url": chrome.runtime.getURL("../problemItemForm/printProblemForm.html")
-      }, function(tab) {
-        setTimeout(() => {
-          chrome.tabs.sendMessage(tab.id, {
-            "key": "printProblemForm",
-            "data": message.data
+        "url": "https://scls-staff.kohalibrary.com" + message.url,
+          "active": false
+      }, tab => {
+        chrome.tabs.executeScript(tab.id, {
+          "file": "/problemItemForm/getPatronData.js"
+        }, res => {
+          chrome.tabs.remove(tab.id);
+          chrome.tabs.sendMessage(problemItemFormTabId, {
+            "key": "patronData",
+            "data": res[0]
           });
-
-          setTimeout(() => {
-            chrome.tabs.remove(tab.id)
-          }, 1000);
-        }, 500);
+        });
       });
       break;
-    case "prepareItemData":
+    case "getItemData":
+      const data = {};
+      let bibNum;
+      let itemNum;
+      let useThisYear;
+      let pastUse;
+
       chrome.tabs.create({
         "active": false,
         "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/circ/circulation-home.pl?mkpItemBarcode=" + message.itemBarcode + "#tabs-catalog_search"
-      }, function(tab) {
+      }, tab => {
         chrome.tabs.executeScript(tab.id, {
           "file": "/problemItemForm/prepareItemData.js"
-        }, function() {
+        }, () => {
           setTimeout(() => {
             chrome.tabs.executeScript(tab.id, {
               "file": "/problemItemForm/getItemData.js"
-            });
-          }, 7000);
-          setTimeout(() => {
-            chrome.tabs.remove(tab.id)
-          }, 8000);
-        });
-      });
-      break;
-    case "returnItemData":
-    case "failedItemData":
-      chrome.tabs.query({
-        "currentWindow": true,
-        "active": true
-      }, function(tabs) {
-        for (let tab of tabs) {
-          if (message.key === "returnItemData") {
-            chrome.tabs.sendMessage(tab.id, {
-              "key": "returnItemData",
-              "bibNum": message.bibNum,
-              "itemNum": message.itemNum,
-              "itemTitle": message.itemTitle,
-              "copies": message.copies,
-              "cCode": message.cCode
-            });
+            }, res => {
+              res = res[0];
+              chrome.tabs.remove(tab.id);
+              bibNum = res.bibNum;
+              itemNum = res.itemNum;
+              useThisYear = res.ckoHist;
 
-            //Get Holds Data
-            chrome.tabs.create({
-              "active": false,
-              "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/catalogue/detail.pl?biblionumber=" + message.bibNum
-            }, function(holdsTab) {
-              setTimeout(() => {
-                chrome.tabs.executeScript(holdsTab.id, {
-                  "file": "/problemItemForm/getItemHolds.js"
-                }, function() {
-                  setTimeout(() => {
+              data.copies = res.copies;
+              data.cCode = res.cCode;
+
+              let getHolds = new Promise((resolve, reject) => {
+                chrome.tabs.create({
+                  "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/catalogue/detail.pl?biblionumber=" + bibNum,
+                  "active": false
+                }, holdsTab => {
+                  chrome.tabs.executeScript(holdsTab.id, {
+                    "file": "/problemItemForm/getItemHolds.js"
+                  }, res => {
                     chrome.tabs.remove(holdsTab.id);
-                  }, 1000);
+                    resolve(res);
+                  });
                 });
-              }, 7000);
+              });
+
+              let getPastUse = new Promise((resolve, reject) => {
+                chrome.tabs.create({
+                  "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/cataloguing/additem.pl?op=edititem&biblionumber=" +
+                      bibNum + "&itemnumber=" + itemNum + "#edititem",
+                  "active": false
+                }, pastUseTab => {
+                  chrome.tabs.executeScript(pastUseTab.id, {
+                    "file": "/problemItemForm/getItemPastUse.js"
+                  }, res => {
+                    chrome.tabs.remove(pastUseTab.id);
+                    resolve(res);
+                  });
+                });
+              });
+
+              Promise.all([getHolds, getPastUse]).then(resArr => {
+                let holds = resArr[0][0];
+                pastUse = resArr[1][0];
+
+                data.title = holds.title;
+                data.holds = holds.holds;
+                data.totalUse = parseInt(useThisYear) + parseInt(pastUse);
+                sendResponse(data);
+              });
             });
-          } else { // Failed
-            chrome.tabs.sendMessage(tab.id, {
-              "key": "failedItemData"
-            });
-          }
-        }
-      });
-      break;
-    case "getPatronFromURL":
-      chrome.tabs.create({
-        "active": false,
-        "url": "https://scls-staff.kohalibrary.com" + message.url
-      }, function(tab) {
-        chrome.tabs.executeScript(tab.id, {
-          "file": "/problemItemForm/getPatronData.js"
-        }, function() {
-          setTimeout(() => {
-            chrome.tabs.remove(tab.id);
-          }, 2500);
+          }, 3000);
         });
       });
+      result = OPEN_CHANNEL;
       break;
-    case "returnPatronData":
-    case "failedPatronData":
-      chrome.tabs.query({
-        "currentWindow": true,
-        "active": true
-      }, function(tabs) {
-        for (let tab of tabs) {
-          if (message.key === "returnPatronData") {
-            chrome.tabs.sendMessage(tab.id, {
-              "key": "returnPatronData",
-              "patronName": message.patronName,
-              "patronBarcode": message.patronBarcode,
-              "patronPhone": message.patronPhone,
-              "patronEmail": message.patronEmail
-            });
-          } else { // Failed
-            chrome.tabs.sendMessage(tab.id, {
-              "key": "failedPatronData"
-            });
-          }
-        }
-      });
-      break;
-    case "returnItemHolds":
-    case "failedItemHolds":
-      chrome.tabs.query({
-        "currentWindow": true,
-        "active": true
-      }, function(tabs) {
-        for (let tab of tabs) {
-          if (message.key === "returnItemHolds") {
-            chrome.tabs.sendMessage(tab.id, {
-              "key": "returnItemHolds",
-              "holds": message.holds,
-              "itemTitle": message.itemTitle
-            });
-          } else { // Failed
-            chrome.tabs.sendMessage(tab.id, {
-              "key": "failedItemHolds"
-            });
-          }
-        }
+    case "printProblemForm":
+      chrome.tabs.create({
+        "url": browser.runtime.getURL("../problemItemForm/printProblemForm.html"),
+        "active": false
+      }, tab => {
+        setTimeout(() => {
+          chrome.tabs.sendMessage(tab.id, {
+            "key": "printProblemForm",
+            "data": request.data
+          }, () => {
+            chrome.tabs.remove(tab.id)
+          });
+        }, 250);
       });
       break;
   }

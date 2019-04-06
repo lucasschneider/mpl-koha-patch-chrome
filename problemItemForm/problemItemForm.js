@@ -84,8 +84,15 @@
       chrome.runtime.sendMessage({
         "key": "getPatronData",
         "patronBarcode": patronBarcode.value
-      }, function(result) {
-        console.log(result);
+      }, resArr => {
+        if (resArr.length > 0) {
+          let res = resArr[0];
+
+          patron.value = res.patronName;
+          patronBarcode.value = res.patronBarcode;
+          patronPhone.value = res.patronPhone;
+          patronEmail.value = res.patronEmail;
+        }
       });
     } else {
       if (!patronBarcode.classList.contains("invalidInput")) {
@@ -93,7 +100,130 @@
       }
     }
   });
-});
+
+  // Trigger prepareItemData() when enter is pressed in itemBarcode input
+  itemBarcode.addEventListener("keyup", evt => {
+    if (evt.key !== "Enter") return;
+    prepareItemData.click();
+    evt.preventDefault();
+  });
+
+  prepareItemData.addEventListener("click", function () {
+    itemTitle.value = "";
+    cCode.value = "";
+    holds.value = "";
+    copies.value = "";
+    use.value = "";
+
+    if (itemBarcode.value.length === 8) {
+      itemBarcode.value = "390780" + itemBarcode.value;
+    }
+
+    if (/^39078\d{9}$/.test(itemBarcode.value)) {
+      if (itemBarcode.classList.contains("invalidInput")) {
+        itemBarcode.classList.remove("invalidInput");
+      }
+      chrome.runtime.sendMessage({
+        "key": "getItemData",
+        "itemBarcode": itemBarcode.value
+      }, res => {
+        itemTitle.value = res.title;
+        cCode.value = res.cCode;
+        holds.value = res.holds;
+        copies.value = res.copies;
+
+        if (!isNaN(res.totalUse)) {
+          use.value = res.totalUse;
+        }
+      });
+    } else {
+      if (!itemBarcode.classList.contains("invalidInput")) {
+        itemBarcode.classList.add("invalidInput");
+      }
+    }
+  });
+
+  printForm.addEventListener("click", function() {
+
+    var emailParts = patronEmail
+
+    if (to.value == "" | date.value == "" | from.value == "" | staffName.value == "" | type.value == "" | idBy.value == "" |receivedVia.value == "" | details.value == "" | itemTitle.value == "" | itemBarcode.value == "") {
+      alert("Please check that all required fields have been filled in.");
+    } else {
+      instructions.style.display = "";
+
+      if (type.value === "Defect Reported") {
+          nonDefectNonHold.style.display = "none";
+          nonDefectHold.style.display = "none";
+          defect.style.display = "";
+      } else {
+        if (receivedVia.value === "Transit Hold") {
+          nonDefectNonHold.style.display = "none";
+          nonDefectHold.style.display = "";
+          defect.style.display = "none";
+        } else {
+          nonDefectNonHold.style.display = "";
+          nonDefectHold.style.display = "none";
+          defect.style.display = "none";
+        }
+      }
+
+      window.location.hash = "instructions";
+
+      chrome.runtime.sendMessage({
+        "key": "printProblemForm",
+        "data": [
+          ["to", to.value.toUpperCase()],
+          ["date", formatDateForDisplay(date.value)],
+          ["from", from.value.toUpperCase()],
+          ["staffName", staffName.value.toUpperCase()],
+          ["type", type.value],
+          ["idBy", idBy.value],
+          ["receivedVia", receivedVia.value],
+          ["ckiBySorter", ckiBySorter.checked.toString()],
+          ["details", details.value],
+          ["itemTitle", itemTitle.value],
+          ["itemBarcode", itemBarcode.value],
+          ["cCode", cCode.value],
+          ["holds", holds.value],
+          ["copies", copies.value],
+          ["use", use.value],
+          ["patron", patron.value],
+          ["patronBarcode", patronBarcode.value],
+          ["patronPhone", patronPhone.value],
+          ["patronEmail", patronEmail.value],
+          ["notified", formatDateForDisplay(notified.value)],
+          ["staffInit", staffInit.value],
+          ["contactedVia", contactedVia.value]
+        ]
+      });
+    }
+  });
+
+  // Handle cases when we're loading the problem form with barcode data
+  if (location.search.length > 0) {
+    var data = location.search.substr(1).split("=");
+
+    if (data && data.length === 2) {
+      if (data[0] === "item") {
+        itemBarcode.value = data[1];
+        prepareItemData.click();
+      } else if (data[0] === "patron") {
+        patronBarcode.value = data[1];
+        getPatronData.click();
+      }
+    }
+  }
+
+  chrome.runtime.onMessage.addListener(msg => {
+    if (msg.key === "patronData") {
+      patron.value = msg.data.patronName;
+      patronBarcode.value = msg.data.patronBarcode;
+      patronPhone.value = msg.data.patronPhone;
+      patronEmail.value = msg.data.patronEmail;
+    }
+  });
+})();
 
 /*var prepareItemData = document.getElementById("prepareItemData"),
   itemBarcode = document.getElementById("itemBarcode"),
