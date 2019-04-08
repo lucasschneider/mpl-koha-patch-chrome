@@ -77,7 +77,7 @@
       patronBarcode.value = "290780" + patronBarcode.value;
     }
 
-    if (/^29078\d{9}$/.test(patronBarcode.value)) {
+    if (/^2\d{13}$/.test(patronBarcode.value)) {
       if (patronBarcode.classList.contains("invalidInput")) {
         patronBarcode.classList.remove("invalidInput");
       }
@@ -119,7 +119,7 @@
       itemBarcode.value = "390780" + itemBarcode.value;
     }
 
-    if (/^39078\d{9}$/.test(itemBarcode.value)) {
+    if (/^3\d{13}$/.test(itemBarcode.value)) {
       if (itemBarcode.classList.contains("invalidInput")) {
         itemBarcode.classList.remove("invalidInput");
       }
@@ -224,162 +224,3 @@
     }
   });
 })();
-
-/*var prepareItemData = document.getElementById("prepareItemData"),
-  itemBarcode = document.getElementById("itemBarcode"),
-  patronBarcode = document.getElementById("patronBarcode"),
-  getPatronData = document.getElementById("getPatronData"),
-  printForm = document.getElementById("printForm");
-
-// Trigger prepareItemData() when enter is pressed in itemBarcode input
-itemBarcode.addEventListener("keyup", event => {
-  if (event.key !== "Enter") return;
-  document.getElementById("prepareItemData").click();
-  event.preventDefault();
-});
-
-if (prepareItemData) prepareItemData.addEventListener("click", function () {
-  var itemTitle = document.getElementById("itemTitle"),
-    cCode = document.getElementById("cCode"),
-    holds = document.getElementById("holds"),
-    copies = document.getElementById("copies"),
-    use = document.getElementById("use");
-
-  itemTitle.value = "";
-  cCode.value = "";
-  holds.value = "";
-  copies.value = "";
-  use.value = "";
-
-  if (itemBarcode.value.length === 8) {
-    itemBarcode.value = "390780" + itemBarcode.value;
-  }
-
-  if (/^3[0-9]{13}$/.test(itemBarcode.value)) {
-    if (itemBarcode.classList.contains("invalidInput")) {
-      itemBarcode.classList.remove("invalidInput");
-    }
-    chrome.runtime.sendMessage({
-      "key": "prepareItemData",
-      "itemBarcode": itemBarcode.value
-    });
-  } else {
-    if (!itemBarcode.classList.contains("invalidInput")) {
-      itemBarcode.classList.add("invalidInput");
-    }
-  }
-});
-
-chrome.runtime.onMessage.addListener(message => {
-  switch (message.key) {
-    case "returnItemData":
-      document.getElementById("itemDataErrMsg").style.display = "none";
-      document.getElementById("itemTitle").value = message.itemTitle;
-      document.getElementById("cCode").value = message.cCode;
-      document.getElementById("copies").value = message.copies;
-      break;
-    case "failedItemData":
-      document.getElementById("itemDataErrMsg").style.display = "";
-      document.getElementById("itemTitle").value = "";
-      document.getElementById("cCode").value = "";
-      document.getElementById("copies").value = "";
-      break;
-    case "returnItemHolds":
-      document.getElementById("holds").value = message.holds;
-      if (message.itemTitle) {
-        document.getElementById("itemTitle").value = message.itemTitle;
-      }
-      break;
-    case "failedItemHolds":
-      document.getElementById("holds").value = "";
-      break;
-    case "returnPatronData":
-      document.getElementById("patronDataErrMsg").style.display = "none";
-      document.getElementById("name").value = message.patronName;
-      document.getElementById("patronBarcode").value = message.patronBarcode;
-      document.getElementById("phone").value = !!message.patronPhone ? message.patronPhone : "";
-      document.getElementById("email").value = !!message.patronEmail ? message.patronEmail : "";
-      break;
-    case "failedPatronData":
-      document.getElementById("patronDataErrMsg").style.display = "";
-      document.getElementById("name").value = "";
-      document.getElementById("phone").value = "";
-      document.getElementById("email").value = "";
-      break;
-  }
-});
-
-if (printForm) printForm.addEventListener("click", function() {
-
-  var emailParts = patronEmail
-
-  if (to.value == "" | date.value == "" | from.value == "" | staffName.value == "" | type.value == "" | idBy.value == "" |receivedVia.value == "" | details.value == "" | itemTitle.value == "" | itemBarcode.value == "") {
-    alert("Please check that all required fields have been filled in.");
-  } else {
-    instructions.style.display = "";
-
-    switch(type.value) {
-      case "Defect Reported":
-          nonDefectNonHold.style.display = "none";
-          nonDefectHold.style.display = "none";
-          defect.style.display = "";
-        break;
-      default:
-        if (receivedVia.value === "Transit Hold") {
-          nonDefectNonHold.style.display = "none";
-          nonDefectHold.style.display = "";
-          defect.style.display = "none";
-        } else {
-          nonDefectNonHold.style.display = "";
-          nonDefectHold.style.display = "none";
-          defect.style.display = "none";
-        }
-        break;
-    }
-
-    window.location.hash = "instructions";
-
-    chrome.runtime.sendMessage({
-      "key": "printProblemForm",
-      "data": [
-        ["to", to.value.toUpperCase()],
-        ["date", formatDateForDisplay(date.value)],
-        ["from", from.value.toUpperCase()],
-        ["staffName", staffName.value.toUpperCase()],
-        ["type", type.value],
-        ["idBy", idBy.value],
-        ["receivedVia", receivedVia.value],
-        ["ckiBySorter", ckiBySorter.checked.toString()],
-        ["details", details.value],
-        ["itemTitle", itemTitle.value],
-        ["itemBarcode", itemBarcode.value],
-        ["cCode", cCode.value],
-        ["holds", holds.value],
-        ["copies", copies.value],
-        ["use", use.value],
-        ["patron", patron.value],
-        ["patronBarcode", patronBarcode.value],
-        ["patronPhone", patronPhone.value],
-        ["patronEmail", patronEmail.value],
-        ["notified", formatDateForDisplay(notified.value)],
-        ["staffInit", staffInit.value],
-        ["contactedVia", contactedVia.value]
-      ]
-    });
-  }
-});*/
-
-/*** Handle cases when we're loading the problem form with barcode data ***/
-/*if (location.search.length > 0) {
-  var data = location.search.substr(1).split("=");
-
-  if (data && data.length === 2) {
-    if (data[0] === "item") {
-      itemBarcode.value = data[1];
-      prepareItemData.click();
-    } else if (data[0] === "patron") {
-      patronBarcode.value = data[1];
-      getPatronData.click();
-    }
-  }
-}*/

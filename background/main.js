@@ -172,8 +172,6 @@ var SCLSLibs = function() {
   };
 };
 
-let problemItemFormTabId;
-
 // Load preference-selected function files
 chrome.webNavigation.onCompleted.addListener(details => {
   if (details.frameId == 0) { // 0 indicates the navigation happens in the tab content window;
@@ -279,12 +277,12 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
             case "2":
               chrome.tabs.create({
                 "url": chrome.runtime.getURL("../problemItemForm/problemItemForm.html") + "?patron=" + barcode
-              }, tab => {problemItemFormTabId = tab.id});
+              });
               break;
             case "3":
               chrome.tabs.create({
                 "url": chrome.runtime.getURL("../problemItemForm/problemItemForm.html") + "?item=" + barcode
-              }, tab => {problemItemFormTabId = tab.id});
+              });
               break;
             default:
               sendErrorMsg("ERROR: Unable to determine barcode type.");
@@ -605,19 +603,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       result = OPEN_CHANNEL;
       break;
     case "getPatronFromURL":
-      chrome.tabs.create({
-        "url": "https://scls-staff.kohalibrary.com" + message.url,
-          "active": false
-      }, tab => {
-        chrome.tabs.executeScript(tab.id, {
-          "file": "/problemItemForm/getPatronData.js"
-        }, res => {
-          chrome.tabs.remove(tab.id);
-          chrome.tabs.sendMessage(problemItemFormTabId, {
-            "key": "patronData",
-            "data": res[0]
-          });
-        });
+      chrome.tabs.query({}, tabs => {
+        const piFormUrl = chrome.runtime.getURL("/problemItemForm/problemItemForm.html");
+        for (let piFormTab of tabs) {
+          if (piFormTab.url === piFormUrl) {
+            chrome.tabs.create({
+              "url": "https://scls-staff.kohalibrary.com" + message.url,
+                "active": false
+            }, tab => {
+              chrome.tabs.executeScript(tab.id, {
+                "file": "/problemItemForm/getPatronData.js"
+              }, res => {
+                chrome.tabs.remove(tab.id);
+                chrome.tabs.sendMessage(piFormTab.id, {
+                  "key": "patronData",
+                  "data": res[0]
+                });
+              });
+            });
+          }
+        }
       });
       break;
     case "getItemData":
