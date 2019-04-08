@@ -606,7 +606,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.tabs.query({}, tabs => {
         const piFormUrl = chrome.runtime.getURL("/problemItemForm/problemItemForm.html");
         for (let piFormTab of tabs) {
-          if (piFormTab.url === piFormUrl) {
+          if (piFormTab.url.includes(piFormUrl)) {
             chrome.tabs.create({
               "url": "https://scls-staff.kohalibrary.com" + message.url,
                 "active": false
