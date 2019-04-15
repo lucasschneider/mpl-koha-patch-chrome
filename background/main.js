@@ -639,66 +639,70 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.tabs.executeScript(tab.id, {
           "file": "/problemItemForm/prepareItemData.js"
         }, () => {
-          setTimeout(() => {
+          let getItemDataListener = setInterval(() => {
             chrome.tabs.executeScript(tab.id, {
               "file": "/problemItemForm/getItemData.js"
             }, res => {
               res = res[0];
-              chrome.tabs.remove(tab.id);
-              bibNum = res.bibNum;
-              itemNum = res.itemNum;
-              useThisYear = res.ckoHist;
+              if (res.hasOwnProperty('found') && res.found) {
+                clearInterval(getItemDataListener);
+                chrome.tabs.remove(tab.id);
 
-              data.copies = res.copies;
-              data.cCode = res.cCode;
+                bibNum = res.bibNum;
+                itemNum = res.itemNum;
+                useThisYear = res.ckoHist;
 
-              let getHolds = new Promise((resolve, reject) => {
-                chrome.tabs.create({
-                  "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/catalogue/detail.pl?biblionumber=" + bibNum,
-                  "active": false
-                }, holdsTab => {
-                  chrome.tabs.executeScript(holdsTab.id, {
-                    "file": "/problemItemForm/getItemHolds.js"
-                  }, res => {
-                    chrome.tabs.remove(holdsTab.id);
-                    resolve(res);
+                data.copies = res.copies;
+                data.cCode = res.cCode;
+
+                let getHolds = new Promise((resolve, reject) => {
+                  chrome.tabs.create({
+                    "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/catalogue/detail.pl?biblionumber=" + bibNum,
+                    "active": false
+                  }, holdsTab => {
+                    chrome.tabs.executeScript(holdsTab.id, {
+                      "file": "/problemItemForm/getItemHolds.js"
+                    }, res => {
+                      chrome.tabs.remove(holdsTab.id);
+                      resolve(res);
+                    });
                   });
                 });
-              });
 
-              let getPastUse = new Promise((resolve, reject) => {
-                chrome.tabs.create({
-                  "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/cataloguing/additem.pl?op=edititem&biblionumber=" +
-                      bibNum + "&itemnumber=" + itemNum + "#edititem",
-                  "active": false
-                }, pastUseTab => {
-                  chrome.tabs.executeScript(pastUseTab.id, {
-                    "file": "/problemItemForm/getItemPastUse.js"
-                  }, res => {
-                    chrome.tabs.remove(pastUseTab.id);
-                    resolve(res);
+                let getPastUse = new Promise((resolve, reject) => {
+                  chrome.tabs.create({
+                    "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/cataloguing/additem.pl?op=edititem&biblionumber=" +
+                        bibNum + "&itemnumber=" + itemNum + "#edititem",
+                    "active": false
+                  }, pastUseTab => {
+                    chrome.tabs.executeScript(pastUseTab.id, {
+                      "file": "/problemItemForm/getItemPastUse.js"
+                    }, res => {
+                      chrome.tabs.remove(pastUseTab.id);
+                      resolve(res);
+                    });
                   });
                 });
-              });
 
-              Promise.all([getHolds, getPastUse]).then(resArr => {
-                let holds = resArr[0][0];
-                pastUse = resArr[1][0];
+                Promise.all([getHolds, getPastUse]).then(resArr => {
+                  let holds = resArr[0][0];
+                  pastUse = resArr[1][0];
 
-                data.title = holds.title;
-                data.holds = holds.holds;
-                data.totalUse = parseInt(useThisYear) + parseInt(pastUse);
-                sendResponse(data);
-              });
+                  data.title = holds.title;
+                  data.holds = holds.holds;
+                  data.totalUse = parseInt(useThisYear) + parseInt(pastUse);
+                  sendResponse(data);
+                });
+              }
             });
-          }, 3000);
+          }, 650);
         });
       });
       result = OPEN_CHANNEL;
       break;
     case "printProblemForm":
       chrome.tabs.create({
-        "url": browser.runtime.getURL("../problemItemForm/printProblemForm.html"),
+        "url": chrome.runtime.getURL("../problemItemForm/printProblemForm.html"),
         "active": false
       }, tab => {
         setTimeout(() => {
@@ -708,7 +712,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }, () => {
             chrome.tabs.remove(tab.id)
           });
-        }, 250);
+        }, 500);
       });
       break;
   }
