@@ -1,17 +1,16 @@
 (function(){
   'use strict';
   ﻿if (/^https?\:\/\/scls-staff\.kohalibrary\.com\/cgi-bin\/koha\/circ\/waitingreserves\.pl.*/.test(location.href)) {
-    /** Define global variables **/
-    var holdTable = document.getElementById('holdst'),
-      holdTableHead = holdTable.tHead,
-      holdTableBody = holdTable.tBodies[0],
-      trArray = holdTableBody.children,
-      newTBody,
-      waitingHolds = [],
-      numWaitingHolds = 0,
-      sortCode = "patron",
-      isDateFiltered = false,
-      expirationDateTH = document.createElement('th');
+    const holdTable = document.getElementById('holdst');
+    let holdTableHead = holdTable.tHead;
+    let holdTableBody = holdTable.tBodies[0];
+    let trArray = holdTableBody.children;
+    let newTBody;
+    let waitingHolds = [];
+    let numWaitingHolds = 0;
+    let sortCode = "patron";
+    let isDateFiltered = false;
+    let expirationDateTH = document.createElement('th');
 
     expirationDateTH.textContent = "Item held through";
 
@@ -22,8 +21,8 @@
 
     function getExpiration(date) {
       date.addDays(8);
-      var days = "" + date.getUTCDate(),
-        month = "" + (date.getUTCMonth()+1),
+      var days = "" + date.getDate(),
+        month = "" + (date.getMonth()+1),
         year = date.getFullYear();
 
         if (days.length == 1) {
@@ -38,8 +37,8 @@
     }
 
     /** Define waiting hold object **/
-    function WaitingHold(htmlTR) {
-      var i = 0;
+    let WaitingHold = function(htmlTR) {
+      let i = 0;
       if (htmlTR.children.length > 5) i++
       this.html = htmlTR;
       this.availableSince = htmlTR.children[0].textContent.trim().substring(0,11);

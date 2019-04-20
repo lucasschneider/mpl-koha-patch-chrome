@@ -1,4 +1,5 @@
 (function(){
+  'use strict';
   if (/cgi-bin\/koha\/members\/memberentry\.pl/.test(window.location)) {
     const addr = document.getElementById('address');
     const addr2 = document.getElementById('address2');
@@ -11,32 +12,29 @@
     const date = new Date();
 
     let year;
-    let month;
+    let month = date.getMonth();
     let staffInit;
 
-    // Convert date UTC -> CST
-    date.setHours(date.getHours() - 6);
-    month = parseInt(date.getUTCMonth(), 10);
-
     if (month < 4) {
-      year = date.getUTCFullYear();
+      year = date.getFullYear();
     } else if (month > 4) {
-      year = (parseInt(date.getUTCFullYear(), 10) + 1).toString();
+      year = date.getFullYear() + 1;
     } else {
-      if (parseInt(date.getUTCDate(), 10) < 15) {
-        year = date.getUTCFullYear();
+      if (date.getDate() < 15) {
+        year = date.getFullYear();
       } else {
-        year = (parseInt(date.getUTCFullYear(), 10) + 1).toString();
+        year = date.getFullYear() + 1;
       }
     }
 
     function currDate() {
-      var year = date.getFullYear(),
-        month = (1 + date.getMonth()).toString(),
-        day;
-      month = month.length > 1 ? month : '0' + month;
-      day = date.getDate().toString();
-      day = day.length > 1 ? day : '0' + day;
+      const year = date.getFullYear();
+      let month = (date.getMonth() + 1).toString();
+      let day = date.getDate().toString();
+
+      if (month.length < 2) month = '0' + month;
+      if (day.length < 2) day = '0' + day;
+
       return month + '/' + day + '/' + year;
     }
 
@@ -44,7 +42,7 @@
      * Restore the save button and remove the override button
      */
     function restoreSave() {
-      var patronActions = document.getElementsByClassName('action');
+      let patronActions = document.getElementsByClassName('action');
 
       if (patronActions.length > 0) {
         patronActions = patronActions[0];
@@ -63,8 +61,8 @@
      * override button
      */
     function blockSubmit() {
-      var patronActions = document.getElementsByClassName('action'),
-        button = document.createElement('input');
+      let patronActions = document.getElementsByClassName('action');
+      const button = document.createElement('input');
 
       if (patronActions.length > 0) {
         patronActions = patronActions[0];
@@ -89,12 +87,12 @@
       alert('Please delete the circulation note regarding the patron\'s previous dorm address');
     }
 
-    var parseAddr = function() {
+    function parseAddr() {
       if (addr.value && city.value && /madison|monona/i.test(city.value)) {
-        chrome.runtime.sendMessage({"key": "parsePatronAddr"},function(response) {
+        chrome.runtime.sendMessage({"key": "parsePatronAddr"}, function(response) {
           for (let item of response) {
-            var fullAddr = (addr.value + ' ' + addr2.value).trim().replace(/[^\w\s]|_/g, "");
-            var regex = new RegExp(item.regex, 'i');
+            let fullAddr = (addr.value + ' ' + addr2.value).trim().replace(/[^\w\s]|_/g, "");
+            let regex = new RegExp(item.regex, 'i');
 
             if (regex.test(fullAddr)) {
               if (item.type === "dorm") {

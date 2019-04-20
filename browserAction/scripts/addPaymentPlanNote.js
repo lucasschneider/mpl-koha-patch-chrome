@@ -1,22 +1,18 @@
 (function(){
   'use strict';
-  var circNote = document.getElementById('borrowernotes'),
-    categoryCode = document.getElementsByClassName('categorycode'),
-    startingBalance,
-    month,
-    day,
-    incrementYear = false,
-    year,
-    expiryDate = '',
-    currDate = '';
-  if (circNote) {
-    startingBalance = prompt('What is the patron\'s starting balance for this payment plan?');
-    if (startingBalance && startingBalance !== '') {
-      // Convert date UTC -> CST
-      let date = new Date();
-      date.setHours(date.getHours() - 6);
+  const circNote = document.getElementById('borrowernotes');
+  let categoryCode = document.getElementsByClassName('categorycode');
+  const date = new Date();
+  let month = date.getMonth();
+  let day = date.getDate();
+  let incrementYear = false;
+  let year = incrementYear ? date.getFullYear() + 1 : date.getFullYear();
+  let expiryDate = '';
+  let currDate = '';
 
-      month = date.getUTCMonth();
+  if (circNote) {
+    let startingBalance = prompt('What is the patron\'s starting balance for this payment plan?');
+    if (startingBalance && startingBalance !== '') {
       if (month+1 < 10) {
         currDate += '0' + (month+1) + '/';
       } else {
@@ -30,12 +26,11 @@
       if (month < 10) {
         month = '0' + month;
       }
-      day = date.getUTCDate();
+
       if (day < 10) {
         day = '0' + day;
       }
-      currDate += day + '/' + date.getUTCFullYear();
-      year = incrementYear ? date.getUTCFullYear() + 1 : date.getUTCFullYear();
+      currDate += day + '/' + date.getFullYear();
       expiryDate += month + '/' + day + '/' + year;
       if (circNote.value !== null && circNote.value !== '') {
         circNote.value += "\n\n";
