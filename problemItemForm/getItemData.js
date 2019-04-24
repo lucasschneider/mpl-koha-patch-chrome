@@ -24,14 +24,17 @@
 
   if (copiesWrap) {
     data.copies = copiesWrap.textContent.match(/\d+/)[0];
+    data.found = true;
   }
 
   if (cCodeCell) {
     data.cCode = cCodeCell.textContent.trim();
+    data.found = true;
   }
 
   if (ckoHistCell) {
     data.ckoHist = ckoHistCell.textContent.match(/\d+/)[0];
+    data.found = true;
   }
 
   return data;

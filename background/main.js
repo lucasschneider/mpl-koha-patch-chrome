@@ -228,7 +228,7 @@ chrome.webNavigation.onCompleted.addListener(details => {
 
       // If the Sunday dropbox option is enabled...
       if ((!res.hasOwnProperty('sundayDropbox') ||
-          (res.hasOwnProperty('sundayDropbox') && res.sundayDropbox)) && (new Date()).getDay()s === 0) {
+          (res.hasOwnProperty('sundayDropbox') && res.sundayDropbox)) && (new Date()).getDay() === 0) {
         // If sundayDropbox is not paused
         if (!res.hasOwnProperty('sundayDropboxPaused') ||
             (res.hasOwnProperty('sundayDropboxPaused') && !res.sundayDropboxPaused)) {
@@ -585,6 +585,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.storage.sync.set({"sundayDropboxPaused": false});
       break;
     case "getPatronData":
+      console.log('getPatronData');
       chrome.tabs.create({
         "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/circ/circulation.pl?findborrower=" + message.patronBarcode,
         "active": false
@@ -599,6 +600,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       result = OPEN_CHANNEL;
       break;
     case "getPatronFromURL":
+      console.log('getPatronFromURL');
       chrome.tabs.query({}, tabs => {
         const piFormUrl = chrome.runtime.getURL("/problemItemForm/problemItemForm.html");
         for (let piFormTab of tabs) {
@@ -622,6 +624,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       break;
     case "getItemData":
+      console.log('getItemData');
       const data = {};
       let bibNum;
       let itemNum;
@@ -640,7 +643,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               "file": "/problemItemForm/getItemData.js"
             }, res => {
               res = res[0];
-              if (res.hasOwnProperty('found') && res.found) {
+              if (res && res.hasOwnProperty('found') && res.found) {
                 clearInterval(getItemDataListener);
                 chrome.tabs.remove(tab.id);
 
@@ -704,7 +707,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         setTimeout(() => {
           chrome.tabs.sendMessage(tab.id, {
             "key": "printProblemForm",
-            "data": request.data
+            "data": message.data
           }, () => {
             chrome.tabs.remove(tab.id)
           });
