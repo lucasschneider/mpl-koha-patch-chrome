@@ -92,7 +92,7 @@
         chrome.runtime.sendMessage({"key": "parsePatronAddr"}, function(response) {
           for (let item of response) {
             let fullAddr = (addr.value + ' ' + addr2.value).trim().replace(/[^\w\s]|_/g, "");
-            let regex = new RegExp(item.regex, 'i');
+            let regex = new RegExp('^' + item.regex, 'i');
 
             if (regex.test(fullAddr)) {
               if (item.type === "dorm") {
