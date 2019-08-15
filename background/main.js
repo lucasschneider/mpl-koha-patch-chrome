@@ -585,7 +585,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.storage.sync.set({"sundayDropboxPaused": false});
       break;
     case "getPatronData":
-      console.log('getPatronData');
       chrome.tabs.create({
         "url": "https://scls-staff.kohalibrary.com/cgi-bin/koha/circ/circulation.pl?findborrower=" + message.patronBarcode,
         "active": false
@@ -600,7 +599,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       result = OPEN_CHANNEL;
       break;
     case "getPatronFromURL":
-      console.log('getPatronFromURL');
       chrome.tabs.query({}, tabs => {
         const piFormUrl = chrome.runtime.getURL("/problemItemForm/problemItemForm.html");
         for (let piFormTab of tabs) {
@@ -624,7 +622,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       break;
     case "getItemData":
-      console.log('getItemData');
       const data = {};
       let bibNum;
       let itemNum;
